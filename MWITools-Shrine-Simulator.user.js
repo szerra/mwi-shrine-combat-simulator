@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MWITools 繁體中文修正版（神龕模擬器網路版）
 // @namespace    http://tampermonkey.net/
-// @version      25.13-TW.18
+// @version      25.13-TW.19
 // @description  MWITools 25.13 繁體中文修正版；支援 GitHub Pages 神龕模擬器、防止舊資料匯入並匯出戰鬥神龕等級。
 // @author       bot7420, shykai
 // @license      CC-BY-NC-SA-4.0
@@ -5086,6 +5086,15 @@
                 div.innerHTML = isZH ? "戰鬥模擬 shykai" : "Combat sim shykai";
                 div.addEventListener("click", () => {
                     window.open("https://shykai.github.io/MWICombatSimulatorTest/dist/", "_blank");
+                });
+                targetNode.insertAdjacentElement("afterbegin", div);
+
+                div = document.createElement("div");
+                div.setAttribute("class", "NavigationBar_minorNavigationLink__31K7Y");
+                div.style.color = SCRIPT_COLOR_MAIN;
+                div.innerHTML = isZH ? "戰鬥模擬 神龕版" : "Combat sim Shrine edition";
+                div.addEventListener("click", () => {
+                    window.open("https://szerra.github.io/mwi-shrine-combat-simulator/", "_blank");
                 });
                 targetNode.insertAdjacentElement("afterbegin", div);
             } else {

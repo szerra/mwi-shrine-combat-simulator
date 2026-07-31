@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MWITools 繁體中文修正版（神龕模擬器網路版）
 // @namespace    http://tampermonkey.net/
-// @version      25.13-TW.20
+// @version      25.13-TW.21
 // @description  MWITools 25.13 繁體中文修正版；支援 GitHub Pages 神龕模擬器、防止舊資料匯入並匯出戰鬥神龕等級。
 // @author       bot7420, shykai
 // @license      CC-BY-NC-SA-4.0
@@ -297,6 +297,27 @@
         addImportButtonForMooneycalc();
         return;
     }
+
+    // Keep combat cards at the bottom of the battle area so the embedded
+    // party/guild statistics panel has a stable area above them. This layout
+    // belongs to MWITools rather than the optional custom-avatar userscript.
+    GM_addStyle(`
+        [class*="BattlePanel_playersArea"] [class*="BattlePanel_combatUnitGrid"],
+        [class*="BattlePanel_monstersArea"] [class*="BattlePanel_combatUnitGrid"] {
+            grid-template-columns: repeat(auto-fit, 9.5rem) !important;
+            align-content: end !important;
+            box-sizing: border-box !important;
+            padding-bottom: 2.25rem !important;
+        }
+
+        [class*="BattlePanel_playersArea"] [class*="BattlePanel_combatUnitGrid"] > [class*="CombatUnit_combatUnit"],
+        [class*="BattlePanel_monstersArea"] [class*="BattlePanel_combatUnitGrid"] > [class*="CombatUnit_combatUnit"] {
+            width: 7.5rem !important;
+            justify-self: center;
+            transform: scale(1.28);
+            transform-origin: center center;
+        }
+    `);
 
     /* 官方漢化 */
     // /static/js/main.9972e69d.chunk.js

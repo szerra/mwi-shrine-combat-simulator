@@ -12,6 +12,10 @@ Site: <https://szerra.github.io/mwi-shrine-combat-simulator/>
 4. 組隊匯入時，請在 10 分鐘內逐一打開目前隊友的角色名片。
 5. 回到模擬器點選「單人／組隊匯入」。
 
+這份 MWITools 已內建完整的「MWI 自訂角色圖庫」，遊戲右下角的 🎭 可開啟圖庫；拖曳圖庫標題列即可自由移動，位置會自動保存。新安裝者不需要再安裝獨立角色圖庫腳本。
+
+已安裝舊版獨立角色圖庫的人，先把獨立版更新到 `0.1.8` 並重新整理遊戲一次，角色與圖片指派會移交給 MWITools，重複介面會自動停用。圖片本體仍保存在相同遊戲網域的 IndexedDB，不會上傳到 GitHub。
+
 ## 資料與隱私
 
 網站只提供靜態程式檔案。角色、隊友、房屋、技能與神龕資料由 Tampermonkey 腳本保存在各使用者自己的瀏覽器中，不會寫入此 repository。
@@ -25,6 +29,8 @@ Site: <https://szerra.github.io/mwi-shrine-combat-simulator/>
 `https://szerra.github.io/mwi-shrine-combat-simulator/MWITools-Shrine-Simulator.user.js`
 
 更新時請保留檔名 `MWITools-Shrine-Simulator.user.js`，提高檔案頂端的 `@version`，再推送到 `main`。GitHub Pages 完成部署後，Tampermonkey 會透過插件內的 `@updateURL` 與 `@downloadURL` 檢查新版本。
+
+角色圖庫的維護來源是 `mwi-szerra-suite/standalone/avatar-library.user.js`。修改後可執行 `node scripts/embed-avatar-library.mjs <avatar-library.user.js 路徑>`，再更新 MWITools 版本並發布。
 
 ## Credits
 

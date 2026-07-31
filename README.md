@@ -18,6 +18,14 @@ Site: <https://szerra.github.io/mwi-shrine-combat-simulator/>
 
 匯入器會拒絕超過 10 分鐘的角色快照、過期隊友名片，以及名單與目前隊伍不一致的戰鬥封包。缺少神龕欄位時會使用 0，不會沿用前一位角色的數值。
 
+## 發布插件更新
+
+插件使用固定網址：
+
+`https://szerra.github.io/mwi-shrine-combat-simulator/MWITools-Shrine-Simulator.user.js`
+
+更新時請保留檔名 `MWITools-Shrine-Simulator.user.js`，提高檔案頂端的 `@version`，再推送到 `main`。GitHub Pages 完成部署後，Tampermonkey 會透過插件內的 `@updateURL` 與 `@downloadURL` 檢查新版本。
+
 ## Credits
 
 - Combat simulator based on the MWI Combat Simulator project by AmVoidGuy and contributors.

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MWITools 繁體中文修正版（神龕模擬器網路版）
 // @namespace    http://tampermonkey.net/
-// @version      25.13-TW.19
+// @version      25.13-TW.20
 // @description  MWITools 25.13 繁體中文修正版；支援 GitHub Pages 神龕模擬器、防止舊資料匯入並匯出戰鬥神龕等級。
 // @author       bot7420, shykai
 // @license      CC-BY-NC-SA-4.0
@@ -267,6 +267,13 @@
         },
     };
     readSettings();
+
+    // These values must be initialized before the early return used on
+    // third-party simulator pages. The import handlers run after that return.
+    const LIVE_IMPORT_CHARACTER_MAX_AGE_MS = 10 * 60 * 1000;
+    const LIVE_IMPORT_PROFILE_MAX_AGE_MS = 10 * 60 * 1000;
+    const LIVE_IMPORT_BATTLE_MAX_AGE_MS = 10 * 60 * 1000;
+    const LIVE_IMPORT_GUILD_KEYS = ["force", "tempo", "spirit", "rarity", "scholar"];
 
     // 非遊戲網站
     const isShareableLocalSimulator =
@@ -7590,11 +7597,6 @@
     </table>`;
         }
     };
-
-    const LIVE_IMPORT_CHARACTER_MAX_AGE_MS = 10 * 60 * 1000;
-    const LIVE_IMPORT_PROFILE_MAX_AGE_MS = 10 * 60 * 1000;
-    const LIVE_IMPORT_BATTLE_MAX_AGE_MS = 10 * 60 * 1000;
-    const LIVE_IMPORT_GUILD_KEYS = ["force", "tempo", "spirit", "rarity", "scholar"];
 
     function isRecentLiveImportValue(timestamp, maxAgeMs) {
         const numericTimestamp = Number(timestamp);

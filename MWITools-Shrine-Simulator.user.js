@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MWITools 繁體中文修正版（神龕模擬器網路版）
 // @namespace    http://tampermonkey.net/
-// @version      25.13-TW.23
+// @version      25.13-TW.24
 // @description  MWITools 25.13 繁體中文修正版；支援 GitHub Pages 神龕模擬器、防止舊資料匯入、匯出戰鬥神龕等級並內建自訂角色圖庫。
 // @author       bot7420, shykai
 // @license      CC-BY-NC-SA-4.0
@@ -8124,10 +8124,8 @@
             const confirmedTotal = confirmedDamage.reduce((sum, value) => sum + value, 0);
             const inferredTotal = inferredByPlayer.reduce((sum, value) => sum + value, 0);
             const unassignedTotal = Number(stats.unassignedDamage) || 0;
-            const unassignedHitSampleTotal = Number(stats.unassignedHitSamples) || 0;
             const teamDamage = confirmedTotal + inferredTotal + unassignedTotal;
             const teamDps = totalTime > 0 ? Math.round(teamDamage / totalTime) : 0;
-            const confirmedRate = teamDamage > 0 ? (confirmedTotal / teamDamage) * 100 : 100;
 
             const formatDamage = (value) => {
                 const number = Math.round(Number(value) || 0);
@@ -8202,40 +8200,6 @@
                             : null,
                 };
             });
-            const overallHitChanceWeight = skillBreakdowns.reduce(
-                (sum, player) =>
-                    sum +
-                    (Number.isFinite(player.hitChance)
-                        ? player.hitChanceWeight || attributedDamage[player.index] || 0
-                        : 0),
-                0
-            );
-            const overallHitChance =
-                overallHitChanceWeight > 0
-                    ? skillBreakdowns.reduce(
-                          (sum, player) =>
-                              sum +
-                              (Number.isFinite(player.hitChance)
-                                  ? player.hitChance *
-                                    (player.hitChanceWeight ||
-                                        attributedDamage[player.index] ||
-                                        0)
-                                  : 0),
-                          0
-                      ) / overallHitChanceWeight
-                    : null;
-            const overallObservedAttempts = skillBreakdowns.reduce(
-                (sum, player) => sum + player.observedAttempts,
-                0
-            );
-            const overallObservedHits = skillBreakdowns.reduce(
-                (sum, player) => sum + player.observedHits,
-                0
-            );
-            const overallObservedHitRate =
-                overallObservedAttempts > 0
-                    ? (overallObservedHits / overallObservedAttempts) * 100
-                    : null;
             const playerHitChanceByIndex = new Map(
                 skillBreakdowns.map((player) => [player.index, player.hitChance])
             );
@@ -8523,13 +8487,6 @@
                 <div style="display:flex;flex-wrap:wrap;gap:5px 14px;padding:5px 7px;margin-bottom:4px;border-radius:6px;background:rgba(75,105,155,.18);">
                     <span>團隊 DPS <b style="color:#ffffff;">${teamDps}</b></span>
                     <span>總傷害 <b>${formatDamage(teamDamage)}</b></span>
-                    <span>確定 <b style="color:#8be3ae;">${formatDamage(confirmedTotal)}</b></span>
-                    <span>推測 <b style="color:#ffd27a;">${formatDamage(inferredTotal)}</b></span>
-                    <span>無法歸屬 <b style="color:#ff8f8f;">${formatDamage(unassignedTotal)}</b></span>
-                    <span>確定率 <b>${confirmedRate.toFixed(1)}%</b></span>
-                    <span>整體封包命中率 <b style="color:#7fd8ff;">${Number.isFinite(overallObservedHitRate) ? `${overallObservedHitRate.toFixed(1)}% (${overallObservedHits}/${overallObservedAttempts})` : "—"}</b></span>
-                    <span>未歸屬命中樣本 <b style="color:#ffb36b;">${unassignedHitSampleTotal}</b></span>
-                    <span>整體預估命中率 <b style="color:#9fe1c1;">${Number.isFinite(overallHitChance) ? `${overallHitChance.toFixed(1)}%` : "—"}</b></span>
                 </div>
                 <div style="display:grid;grid-template-columns:28px minmax(88px,1fr) 66px 78px 50px 68px;gap:8px;padding:2px 4px;color:#91a3c3;font-size:11px;">
                     <span>#</span><span>玩家</span><span style="text-align:right;">DPS</span><span style="text-align:right;">傷害</span><span style="text-align:right;">占比</span><span style="text-align:right;">封包命中</span>

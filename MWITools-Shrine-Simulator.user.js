@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MWITools 繁體中文修正版（神龕模擬器網路版）
 // @namespace    http://tampermonkey.net/
-// @version      25.13-TW.24
+// @version      25.13-TW.25
 // @description  MWITools 25.13 繁體中文修正版；支援 GitHub Pages 神龕模擬器、防止舊資料匯入、匯出戰鬥神龕等級並內建自訂角色圖庫。
 // @author       bot7420, shykai
 // @license      CC-BY-NC-SA-4.0
@@ -315,7 +315,10 @@
         [class*="BattlePanel_monstersArea"] [class*="BattlePanel_combatUnitGrid"] > [class*="CombatUnit_combatUnit"] {
             width: 7.5rem !important;
             justify-self: center;
-            transform: scale(1.28);
+            /* Hit Tracker shakes the card by writing an inline transform.
+               Keep MWITools' responsive scale authoritative so the whole card
+               no longer jumps between scaled and unscaled sizes on every hit. */
+            transform: scale(1.28) !important;
             transform-origin: center center;
         }
 
@@ -331,7 +334,7 @@
 
             [class*="BattlePanel_playersArea"] [class*="BattlePanel_combatUnitGrid"] > [class*="CombatUnit_combatUnit"],
             [class*="BattlePanel_monstersArea"] [class*="BattlePanel_combatUnitGrid"] > [class*="CombatUnit_combatUnit"] {
-                transform: scale(0.96);
+                transform: scale(0.96) !important;
             }
 
             .script_dps_panel {
@@ -354,7 +357,7 @@
 
             [class*="BattlePanel_playersArea"] [class*="BattlePanel_combatUnitGrid"] > [class*="CombatUnit_combatUnit"],
             [class*="BattlePanel_monstersArea"] [class*="BattlePanel_combatUnitGrid"] > [class*="CombatUnit_combatUnit"] {
-                transform: scale(0.84);
+                transform: scale(0.84) !important;
             }
 
             .script_dps_panel {

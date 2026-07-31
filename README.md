@@ -4,6 +4,12 @@ Public GitHub Pages build of the MWI combat simulator with combat-guild-shrine c
 
 Site: <https://szerra.github.io/mwi-shrine-combat-simulator/>
 
+## Hit Tracker 相容修正版
+
+安裝網址：<https://szerra.github.io/mwi-shrine-combat-simulator/MWI-Hit-Tracker-Canvas-Szerra.user.js>
+
+這版修正與 MWITools 同時使用時角色／怪物圖卡反覆縮放，以及紅色扣血殘影跑離 HP 條的問題。安裝後請在 Tampermonkey **停用原作者的 `MWI-Hit-Tracker-Canvas`**，只保留名稱含「Szerra 相容修正版」的版本，否則兩份腳本會重複產生特效。
+
 ## 使用方式
 
 1. 停用其他所有 MWITools 腳本，避免重複攔截遊戲資料。

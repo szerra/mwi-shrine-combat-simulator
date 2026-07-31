@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MWITools 繁體中文修正版（神龕模擬器網路版）
 // @namespace    http://tampermonkey.net/
-// @version      25.13-TW.22
+// @version      25.13-TW.23
 // @description  MWITools 25.13 繁體中文修正版；支援 GitHub Pages 神龕模擬器、防止舊資料匯入、匯出戰鬥神龕等級並內建自訂角色圖庫。
 // @author       bot7420, shykai
 // @license      CC-BY-NC-SA-4.0
@@ -317,6 +317,51 @@
             justify-self: center;
             transform: scale(1.28);
             transform-origin: center center;
+        }
+
+        /* 1920x1080 at Windows 125% scaling leaves roughly a 1536x864 CSS
+           viewport. When chat is expanded, reserve less vertical space for
+           combat cards so the statistics panel remains usable. */
+        @media (max-width: 1700px), (max-height: 950px) {
+            [class*="BattlePanel_playersArea"] [class*="BattlePanel_combatUnitGrid"],
+            [class*="BattlePanel_monstersArea"] [class*="BattlePanel_combatUnitGrid"] {
+                grid-template-columns: repeat(auto-fit, 8rem) !important;
+                padding-bottom: 0.75rem !important;
+            }
+
+            [class*="BattlePanel_playersArea"] [class*="BattlePanel_combatUnitGrid"] > [class*="CombatUnit_combatUnit"],
+            [class*="BattlePanel_monstersArea"] [class*="BattlePanel_combatUnitGrid"] > [class*="CombatUnit_combatUnit"] {
+                transform: scale(0.96);
+            }
+
+            .script_dps_panel {
+                max-height: clamp(120px, calc(100% - 260px), 260px) !important;
+                overflow-x: hidden !important;
+                overflow-y: auto !important;
+                scrollbar-gutter: auto !important;
+                padding: 6px 8px !important;
+                font-size: 11px !important;
+                line-height: 1.3 !important;
+            }
+        }
+
+        @media (max-width: 1360px), (max-height: 760px) {
+            [class*="BattlePanel_playersArea"] [class*="BattlePanel_combatUnitGrid"],
+            [class*="BattlePanel_monstersArea"] [class*="BattlePanel_combatUnitGrid"] {
+                grid-template-columns: repeat(auto-fit, 7rem) !important;
+                padding-bottom: 0.25rem !important;
+            }
+
+            [class*="BattlePanel_playersArea"] [class*="BattlePanel_combatUnitGrid"] > [class*="CombatUnit_combatUnit"],
+            [class*="BattlePanel_monstersArea"] [class*="BattlePanel_combatUnitGrid"] > [class*="CombatUnit_combatUnit"] {
+                transform: scale(0.84);
+            }
+
+            .script_dps_panel {
+                max-height: clamp(104px, calc(100% - 225px), 220px) !important;
+                padding: 5px 7px !important;
+                font-size: 10px !important;
+            }
         }
     `);
 

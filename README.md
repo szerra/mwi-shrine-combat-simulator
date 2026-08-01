@@ -4,6 +4,8 @@ Public GitHub Pages build of the MWI combat simulator with combat-guild-shrine c
 
 Site: <https://szerra.github.io/mwi-shrine-combat-simulator/>
 
+MWITools `25.13-TW.26` 起可同時辨識遊戲的簡體與繁體物品名稱；簡體中文玩家的市場價格、倉庫排序與物品利潤不會再因名稱反查失敗而顯示 `0 / 0`。
+
 ## Hit Tracker 相容修正版
 
 安裝網址：<https://szerra.github.io/mwi-shrine-combat-simulator/MWI-Hit-Tracker-Canvas-Szerra.user.js>

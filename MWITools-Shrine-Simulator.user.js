@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         MWITools 繁體中文修正版（神龕模擬器網路版）
 // @namespace    http://tampermonkey.net/
-// @version      25.13-TW.26
-// @description  MWITools 25.13 繁體中文修正版；相容簡繁中文市場價格，支援 GitHub Pages 神龕模擬器、防止舊資料匯入、匯出戰鬥神龕等級並內建自訂角色圖庫。
+// @version      25.13-TW.27
+// @description  MWITools 25.13 繁體中文修正版；相容簡繁中文市場價格，支援 GitHub Pages 神龕模擬器、永久保留上次匯入資料、匯出戰鬥神龕等級並內建自訂角色圖庫。
 // @author       bot7420, shykai
 // @license      CC-BY-NC-SA-4.0
 // @match        https://www.milkywayidle.com/*
@@ -271,9 +271,6 @@
 
     // These values must be initialized before the early return used on
     // third-party simulator pages. The import handlers run after that return.
-    const LIVE_IMPORT_CHARACTER_MAX_AGE_MS = 10 * 60 * 1000;
-    const LIVE_IMPORT_PROFILE_MAX_AGE_MS = 10 * 60 * 1000;
-    const LIVE_IMPORT_BATTLE_MAX_AGE_MS = 10 * 60 * 1000;
     const LIVE_IMPORT_GUILD_KEYS = ["force", "tempo", "spirit", "rarity", "scholar"];
 
     // 非遊戲網站
@@ -9513,9 +9510,54 @@
         }
     };
 
-    function isRecentLiveImportValue(timestamp, maxAgeMs) {
+    function formatLiveImportSavedAt(timestamp) {
         const numericTimestamp = Number(timestamp);
-        return Number.isFinite(numericTimestamp) && numericTimestamp > 0 && Date.now() - numericTimestamp <= maxAgeMs;
+        if (!Number.isFinite(numericTimestamp) || numericTimestamp <= 0) return "";
+        return new Date(numericTimestamp).toLocaleString(isZH ? "zh-TW" : undefined, {
+            month: "2-digit",
+            day: "2-digit",
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: false,
+        });
+    }
+
+    function getPersistentImportStatus() {
+        const characterSavedAt = Number(GM_getValue("init_character_data_saved_at", 0)) || 0;
+        const battleSavedAt = Number(GM_getValue("new_battle_saved_at", 0)) || 0;
+        let oldestPartyProfileSavedAt = 0;
+
+        try {
+            const characterObj = JSON.parse(GM_getValue("init_character_data", ""));
+            const selfCharacterID = String(characterObj?.character?.id ?? "");
+            const partyCharacterIDs = Object.values(characterObj?.partyInfo?.partySlotMap ?? {})
+                .map((member) => String(member?.characterID ?? ""))
+                .filter((characterID) => characterID && characterID !== selfCharacterID);
+            const storedProfileList = JSON.parse(GM_getValue("profile_export_list", "[]"));
+            const profileTimes = partyCharacterIDs.map((characterID) => {
+                const profile = Array.isArray(storedProfileList)
+                    ? storedProfileList.find((item) => String(item?.characterID ?? "") === characterID)
+                    : null;
+                return Number(profile?.timestamp) || 0;
+            }).filter((timestamp) => timestamp > 0);
+            if (profileTimes.length) oldestPartyProfileSavedAt = Math.min(...profileTimes);
+        } catch {
+            oldestPartyProfileSavedAt = 0;
+        }
+
+        return { characterSavedAt, oldestPartyProfileSavedAt, battleSavedAt };
+    }
+
+    function updatePersistentImportButton(button, prefix) {
+        const status = getPersistentImportStatus();
+        const characterTime = formatLiveImportSavedAt(status.characterSavedAt);
+        const profileTime = formatLiveImportSavedAt(status.oldestPartyProfileSavedAt);
+        const battleTime = formatLiveImportSavedAt(status.battleSavedAt);
+        button.style.backgroundColor = SCRIPT_COLOR_MAIN;
+        button.textContent = characterTime ? `${prefix}｜角色 ${characterTime}` : prefix;
+        button.title = isZH
+            ? `資料不會自動過期。角色：${characterTime || "尚未載入"}；隊友最舊：${profileTime || "無隊友快取"}；戰鬥快照：${battleTime || "無"}。重新整理遊戲頁面才更新角色與隊伍；重新開啟隊友名片才更新該隊友。`
+            : `Data does not expire automatically. Character: ${characterTime || "not loaded"}; oldest teammate: ${profileTime || "no teammate cache"}; battle snapshot: ${battleTime || "none"}. Refresh the game to update the character and party; reopen a teammate profile to update that teammate.`;
     }
 
     function readGuildBuffLevelValue(value) {
@@ -9569,8 +9611,8 @@
         return Object.fromEntries(LIVE_IMPORT_GUILD_KEYS.map((key) => [key, findGuildBuffLevel(guildBuffSource, key)]));
     }
 
-    function getFreshBattleForRoster(partyCharacterIDs) {
-        if (!isRecentLiveImportValue(GM_getValue("new_battle_saved_at", 0), LIVE_IMPORT_BATTLE_MAX_AGE_MS)) return null;
+    function getStoredBattleForRoster(partyCharacterIDs) {
+        if (!(Number(GM_getValue("new_battle_saved_at", 0)) > 0)) return null;
         try {
             const battleObj = JSON.parse(GM_getValue("new_battle", ""));
             const battleCharacterIDs = (battleObj?.players ?? []).map((player) => String(player?.character?.id ?? "")).filter(Boolean);
@@ -9592,20 +9634,17 @@
                 let button = document.createElement("button");
                 selectedElement.parentNode.parentElement.parentElement.insertBefore(button, selectedElement.parentElement.parentElement.nextSibling);
                 button.id = "buttonMWIToolsLiveImport";
-                button.textContent = isZH
-                    ? "單人/組隊匯入(重新整理遊戲網頁更新人物資料)"
-                    : "Import solo/group (Refresh game page to update character set)";
+                updatePersistentImportButton(
+                    button,
+                    isZH ? "單人/組隊匯入" : "Import solo/group"
+                );
                 button.style.backgroundColor = SCRIPT_COLOR_MAIN;
                 button.style.padding = "5px";
                 button.onclick = async function () {
                     console.log("Importer: Import button onclick");
                     if (
                         !GM_getValue("init_character_data", "") ||
-                        !GM_getValue("init_client_data", "") ||
-                        !isRecentLiveImportValue(
-                            GM_getValue("init_character_data_saved_at", 0),
-                            LIVE_IMPORT_CHARACTER_MAX_AGE_MS
-                        )
+                        !GM_getValue("init_client_data", "")
                     ) {
                         button.textContent = isZH ? "請先重新整理遊戲頁面" : "Refresh the game page first";
                         button.style.backgroundColor = "#b02a37";
@@ -9699,7 +9738,7 @@
         // Input simulation time
         document.querySelector(`input#inputSimulationTime`).value = 24;
 
-        button.textContent = isZH ? "已匯入" : "Imported";
+        updatePersistentImportButton(button, isZH ? "已匯入" : "Imported");
         if (!isParty) {
             setTimeout(() => {
                 document.querySelector(`button#buttonStartSimulation`).click();
@@ -9714,7 +9753,7 @@
             (member) => member?.characterID
         );
         const activePartyCharacterIDs = activePartyMembers.map((member) => String(member.characterID));
-        const battleObj = getFreshBattleForRoster(activePartyCharacterIDs);
+        const battleObj = getStoredBattleForRoster(activePartyCharacterIDs);
         let storedProfileList = [];
         try {
             storedProfileList = JSON.parse(GM_getValue("profile_export_list", "[]"));
@@ -9764,8 +9803,7 @@
                     } else {
                         const profileList = storedProfileList.filter(
                             (item) =>
-                                String(item?.characterID) === String(member.characterID) &&
-                                isRecentLiveImportValue(item?.timestamp, LIVE_IMPORT_PROFILE_MAX_AGE_MS)
+                                String(item?.characterID) === String(member.characterID)
                         );
                         if (profileList.length !== 1) {
                             console.log("Can not find stored profile for " + member.characterID);

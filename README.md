@@ -4,7 +4,9 @@ Public GitHub Pages build of the MWI combat simulator with combat-guild-shrine c
 
 Site: <https://szerra.github.io/mwi-shrine-combat-simulator/>
 
-MWITools `25.13-TW.27` 會永久保留上一次成功擷取的角色與隊友資料；資料只在重新整理遊戲頁面或重新開啟隊友名片時更新，不會因時間經過而失效。此版本也可同時辨識遊戲的簡體與繁體物品名稱。
+MWITools `26.4.5-TW.28` 以官方 `26.4.5` 為底，保留新版 DPS／HPS／承傷、戰鬥片段、歷史與資產中心，並永久保留上一次成功擷取的角色與隊友資料。資料只在重新整理遊戲頁面或重新開啟隊友名片時更新，不會因時間經過而失效；簡體與繁體物品名稱都能辨識。
+
+這是給 Szerra 整合包使用的相容版。第一次升級會自動關閉與市場、戰鬥特效、角色功能重複的 MWITools 項目；之後玩家在遊戲設定內自行調整的開關會保留，不會在每次更新時重設。新版 DPS／HPS／承傷預設保持開啟。
 
 ## Hit Tracker 相容修正版
 
@@ -43,6 +45,8 @@ MWITools `25.13-TW.27` 會永久保留上一次成功擷取的角色與隊友資
 更新時請保留檔名 `MWITools-Shrine-Simulator.user.js`，提高檔案頂端的 `@version`，再推送到 `main`。GitHub Pages 完成部署後，Tampermonkey 會透過插件內的 `@updateURL` 與 `@downloadURL` 檢查新版本。
 
 角色圖庫的維護來源是 `mwi-szerra-suite/standalone/avatar-library.user.js`。修改後可執行 `node scripts/embed-avatar-library.mjs <avatar-library.user.js 路徑>`，再更新 MWITools 版本並發布。
+
+升級新版 MWITools 時，先在官方模組化原始碼套用相容修改並完成官方測試與建置，再執行 `node scripts/package-mwitools-26-compat.mjs <MWITools.js 路徑>`。封裝程式會設定獨立更新網址、套用繁中物品字典、加入簡中查找別名，並沿用上一版內建角色圖庫。
 
 ## Credits
 

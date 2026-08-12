@@ -7,7 +7,7 @@ const root = path.resolve(__dirname, "..");
 const scriptPath = path.join(root, "MWI-Shrine-Simulator-Bridge.user.js");
 const source = fs.readFileSync(scriptPath, "utf8");
 
-assert.match(source, /@version\s+1\.0\.1/);
+assert.match(source, /@version\s+1\.0\.2/);
 assert.match(source, /characterGuildBuffLevelMap/);
 assert.match(source, /神龕戰鬥模擬器/);
 assert.match(source, /https:\/\/szerra\.github\.io\/mwi-shrine-combat-simulator\//);
@@ -18,6 +18,12 @@ assert.doesNotMatch(source, /MWI_INTEGRATED/);
 const storage = new Map();
 const openedWindows = [];
 const intervalCallbacks = [];
+const cachedClientData = {
+  type: "init_client_data",
+  actionDetailMap: { "/actions/combat/fly": { type: "/action_types/combat" } },
+  itemDetailMap: { "/items/test": { name: "Test Item" } },
+  abilityDetailMap: {},
+};
 
 class FakeElement {
   constructor(tagName) {
@@ -88,6 +94,12 @@ const pageWindow = {
   __MWI_SHRINE_BRIDGE_TEST__: true,
   MessageEvent: FakeMessageEvent,
   open: (url, target) => openedWindows.push([url, target]),
+  localStorage: {
+    getItem: (key) => key === "initClientData" ? "cached" : null,
+  },
+  localStorageUtil: {
+    getInitClientData: () => cachedClientData,
+  },
 };
 const context = {
   console,
@@ -119,6 +131,11 @@ vm.runInContext(source, context, { filename: scriptPath });
 
 const api = pageWindow.__mwiShrineBridgeTestAPI;
 assert.ok(api, "應公開測試介面");
+assert.deepEqual(
+  JSON.parse(storage.get("mwiShrineBridge_init_client_data")),
+  cachedClientData,
+  "應在遊戲沒有重送 init_client_data 時從官方快取補抓",
+);
 
 const entrySelector = '[data-mwi-shrine-bridge-entry="true"]';
 let gameEntry = currentNavigation.querySelector(entrySelector);

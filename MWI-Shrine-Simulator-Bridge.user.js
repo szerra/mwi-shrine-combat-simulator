@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MWI 神龕模擬器橋接器
 // @namespace    https://github.com/szerra/mwi-shrine-combat-simulator
-// @version      1.0.1
+// @version      1.0.2
 // @description  在遊戲內開啟神龕模擬器，並獨立擷取角色、隊伍、裝備、技能與神龕等級；不依賴 MWITools 或公會資料插件。
 // @author       Szerra adaptation; importer based on MWITools by bot7420, shykai, Stella
 // @license      CC-BY-NC-SA-4.0
@@ -31,7 +31,7 @@
 (function () {
   "use strict";
 
-  const VERSION = "1.0.1";
+  const VERSION = "1.0.2";
   const PREFIX = "mwiShrineBridge_";
   const SIMULATOR_URL = "https://szerra.github.io/mwi-shrine-combat-simulator/";
   const GAME_SOCKET_HOSTS = [
@@ -908,6 +908,44 @@ function constructPlayerExportObjFromStoredProfile(
     }
   }
 
+  function loadCachedClientData() {
+    try {
+      const storage = pageWindow.localStorage;
+      const storageUtil = pageWindow.localStorageUtil;
+      if (
+        !storage?.getItem?.("initClientData") ||
+        typeof storageUtil?.getInitClientData !== "function"
+      ) {
+        return false;
+      }
+      const clientData = storageUtil.getInitClientData();
+      if (!clientData?.actionDetailMap || !clientData?.itemDetailMap) {
+        return false;
+      }
+      saveJson("init_client_data", clientData);
+      return true;
+    } catch (error) {
+      console.warn(
+        "[MWI 神龕橋接器 " + VERSION + "] 無法讀取遊戲共用資料快取",
+        error,
+      );
+      return false;
+    }
+  }
+
+  function installClientDataBootstrap() {
+    if (loadCachedClientData()) return;
+    if (typeof pageWindow.__mwiShrineBridgeClientDataTimerV1 !== "undefined") {
+      return;
+    }
+    const timer = setInterval(() => {
+      if (!loadCachedClientData()) return;
+      clearInterval(timer);
+      pageWindow.__mwiShrineBridgeClientDataTimerV1 = null;
+    }, 250);
+    pageWindow.__mwiShrineBridgeClientDataTimerV1 = timer;
+  }
+
   function updateCharacter(mutator) {
     const current = readJson("init_character_data");
     if (!current || typeof current !== "object") return;
@@ -1167,6 +1205,7 @@ function constructPlayerExportObjFromStoredProfile(
       handleGamePayload,
       findGuildBuffMap,
       ensureGameSimulatorEntry,
+      loadCachedClientData,
     };
   }
 
@@ -1179,6 +1218,7 @@ function constructPlayerExportObjFromStoredProfile(
   const host = location.hostname.toLowerCase();
   const isGame = host.includes("milkywayidle");
   if (isGame) {
+    installClientDataBootstrap();
     installSocketHook();
     installGameSimulatorEntry();
     console.info("[MWI 神龕橋接器] " + VERSION + " 已開始讀取遊戲資料");

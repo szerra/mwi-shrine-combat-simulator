@@ -3,7 +3,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "check:userscript": "node --check MWITools-Shrine-Simulator.user.js"
+    "check:userscript": "node --check MWITools-Shrine-Simulator.user.js",
+    "check:bridge": "node --check MWI-Shrine-Simulator-Bridge.user.js && node tests/standalone-shrine-bridge.test.cjs"
   },
   "devDependencies": {
     "opencc-js": "1.4.1"

@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         MWI 神龕模擬器橋接器
 // @namespace    https://github.com/szerra/mwi-shrine-combat-simulator
-// @version      1.0.0
-// @description  獨立擷取角色、隊伍、裝備、技能與神龕等級，一鍵匯入 MWI Shrine Combat Simulator；不依賴 MWITools 或公會資料插件。
+// @version      1.0.1
+// @description  在遊戲內開啟神龕模擬器，並獨立擷取角色、隊伍、裝備、技能與神龕等級；不依賴 MWITools 或公會資料插件。
 // @author       Szerra adaptation; importer based on MWITools by bot7420, shykai, Stella
 // @license      CC-BY-NC-SA-4.0
 // @icon         https://www.milkywayidle.com/favicon.svg
@@ -31,8 +31,9 @@
 (function () {
   "use strict";
 
-  const VERSION = "1.0.0";
+  const VERSION = "1.0.1";
   const PREFIX = "mwiShrineBridge_";
+  const SIMULATOR_URL = "https://szerra.github.io/mwi-shrine-combat-simulator/";
   const GAME_SOCKET_HOSTS = [
     "api.milkywayidle.com/ws",
     "api-test.milkywayidle.com/ws",
@@ -1110,21 +1111,76 @@ function constructPlayerExportObjFromStoredProfile(
     console.info("[MWI 神龕橋接器] 已清除橋接器自己的快取；公會資料未變更。");
   }
 
+  function openShrineSimulator() {
+    if (typeof pageWindow.open === "function") {
+      pageWindow.open(SIMULATOR_URL, "_blank");
+    }
+  }
+
+  function ensureGameSimulatorEntry() {
+    if (typeof document?.querySelector !== "function") return false;
+    const container = document.querySelector(
+      'div[class*="NavigationBar_minorNavigationLinks"]',
+    );
+    if (!container) return false;
+    if (container.querySelector('[data-mwi-shrine-bridge-entry="true"]')) {
+      return true;
+    }
+
+    const nativeLink = container.querySelector(
+      'div[class*="NavigationBar_minorNavigationLink"]',
+    );
+    const link = document.createElement("div");
+    link.className = nativeLink?.className || "NavigationBar_minorNavigationLink__31K7Y";
+    link.setAttribute("data-mwi-shrine-bridge-entry", "true");
+    link.setAttribute("role", "button");
+    link.setAttribute("tabindex", "0");
+    link.style.color = runtime.config.SCRIPT_COLOR_MAIN;
+    link.style.cursor = "pointer";
+    link.textContent = runtime.config.isZH
+      ? "神龕戰鬥模擬器"
+      : "Shrine Combat Simulator";
+    link.addEventListener("click", openShrineSimulator);
+    link.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      event.preventDefault();
+      openShrineSimulator();
+    });
+    container.insertBefore(link, container.firstChild);
+    return true;
+  }
+
+  function installGameSimulatorEntry() {
+    ensureGameSimulatorEntry();
+    if (typeof pageWindow.__mwiShrineBridgeEntryTimerV1 === "undefined") {
+      pageWindow.__mwiShrineBridgeEntryTimerV1 = setInterval(
+        ensureGameSimulatorEntry,
+        500,
+      );
+    }
+  }
+
   if (pageWindow.__MWI_SHRINE_BRIDGE_TEST__) {
     pageWindow.__mwiShrineBridgeTestAPI = {
       constructGroupExportObj,
       extractGuildCombatBuffLevels,
       handleGamePayload,
       findGuildBuffMap,
+      ensureGameSimulatorEntry,
     };
   }
 
+  GM_registerMenuCommand(
+    runtime.config.isZH ? "開啟神龕戰鬥模擬器" : "Open Shrine Combat Simulator",
+    openShrineSimulator,
+  );
   GM_registerMenuCommand("清除神龕模擬器橋接快取", clearBridgeCache);
 
   const host = location.hostname.toLowerCase();
   const isGame = host.includes("milkywayidle");
   if (isGame) {
     installSocketHook();
+    installGameSimulatorEntry();
     console.info("[MWI 神龕橋接器] " + VERSION + " 已開始讀取遊戲資料");
   } else {
     addImportButtonForAmvoidguy();

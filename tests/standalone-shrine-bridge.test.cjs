@@ -7,13 +7,76 @@ const root = path.resolve(__dirname, "..");
 const scriptPath = path.join(root, "MWI-Shrine-Simulator-Bridge.user.js");
 const source = fs.readFileSync(scriptPath, "utf8");
 
-assert.match(source, /@version\s+1\.0\.0/);
+assert.match(source, /@version\s+1\.0\.1/);
 assert.match(source, /characterGuildBuffLevelMap/);
+assert.match(source, /神龕戰鬥模擬器/);
+assert.match(source, /https:\/\/szerra\.github\.io\/mwi-shrine-combat-simulator\//);
 assert.doesNotMatch(source, /mwi-guild-data-bridge:/);
 assert.doesNotMatch(source, /script\.google\.com/);
 assert.doesNotMatch(source, /MWI_INTEGRATED/);
 
 const storage = new Map();
+const openedWindows = [];
+const intervalCallbacks = [];
+
+class FakeElement {
+  constructor(tagName) {
+    this.tagName = tagName;
+    this.children = [];
+    this.attributes = new Map();
+    this.listeners = new Map();
+    this.className = "";
+    this.style = {};
+    this.textContent = "";
+  }
+
+  get firstChild() {
+    return this.children[0] || null;
+  }
+
+  setAttribute(name, value) {
+    this.attributes.set(name, String(value));
+  }
+
+  getAttribute(name) {
+    return this.attributes.get(name) || null;
+  }
+
+  addEventListener(type, listener) {
+    this.listeners.set(type, listener);
+  }
+
+  insertBefore(child, before) {
+    const index = before ? this.children.indexOf(before) : -1;
+    if (index >= 0) this.children.splice(index, 0, child);
+    else this.children.push(child);
+  }
+
+  querySelector(selector) {
+    if (selector === '[data-mwi-shrine-bridge-entry="true"]') {
+      return this.children.find(
+        (child) => child.getAttribute("data-mwi-shrine-bridge-entry") === "true",
+      ) || null;
+    }
+    if (selector.includes('NavigationBar_minorNavigationLink')) {
+      return this.children.find(
+        (child) => child.className.includes("NavigationBar_minorNavigationLink"),
+      ) || null;
+    }
+    return null;
+  }
+}
+
+function makeNavigation() {
+  const navigation = new FakeElement("div");
+  const nativeLink = new FakeElement("div");
+  nativeLink.className = "NavigationBar_minorNavigationLink__native";
+  nativeLink.textContent = "原生連結";
+  navigation.children.push(nativeLink);
+  return navigation;
+}
+
+let currentNavigation = makeNavigation();
 class FakeMessageEvent {}
 Object.defineProperty(FakeMessageEvent.prototype, "data", {
   configurable: true,
@@ -24,6 +87,7 @@ Object.defineProperty(FakeMessageEvent.prototype, "data", {
 const pageWindow = {
   __MWI_SHRINE_BRIDGE_TEST__: true,
   MessageEvent: FakeMessageEvent,
+  open: (url, target) => openedWindows.push([url, target]),
 };
 const context = {
   console,
@@ -32,9 +96,17 @@ const context = {
   MessageEvent: FakeMessageEvent,
   navigator: { language: "zh-TW" },
   location: { hostname: "www.milkywayidle.com" },
-  document: {},
-  setInterval,
-  clearInterval,
+  document: {
+    querySelector: (selector) => selector.includes("NavigationBar_minorNavigationLinks")
+      ? currentNavigation
+      : null,
+    createElement: (tagName) => new FakeElement(tagName),
+  },
+  setInterval: (callback, delay) => {
+    intervalCallbacks.push({ callback, delay });
+    return intervalCallbacks.length;
+  },
+  clearInterval: () => {},
   setTimeout,
   Event,
   WeakSet,
@@ -47,6 +119,28 @@ vm.runInContext(source, context, { filename: scriptPath });
 
 const api = pageWindow.__mwiShrineBridgeTestAPI;
 assert.ok(api, "應公開測試介面");
+
+const entrySelector = '[data-mwi-shrine-bridge-entry="true"]';
+let gameEntry = currentNavigation.querySelector(entrySelector);
+assert.ok(gameEntry, "應在遊戲左側導覽列加入神龕模擬器入口");
+assert.equal(gameEntry.className, "NavigationBar_minorNavigationLink__native");
+assert.equal(gameEntry.textContent, "神龕戰鬥模擬器");
+assert.equal(gameEntry.style.color, "#2e9d8f");
+assert.equal(gameEntry, currentNavigation.firstChild, "入口應排在次要連結區最前面");
+const entryCount = currentNavigation.children.length;
+api.ensureGameSimulatorEntry();
+assert.equal(currentNavigation.children.length, entryCount, "重複檢查不得加入第二個入口");
+gameEntry.listeners.get("click")();
+assert.deepEqual(openedWindows.pop(), [
+  "https://szerra.github.io/mwi-shrine-combat-simulator/",
+  "_blank",
+]);
+assert.equal(intervalCallbacks.length, 1);
+assert.equal(intervalCallbacks[0].delay, 500);
+currentNavigation = makeNavigation();
+intervalCallbacks[0].callback();
+gameEntry = currentNavigation.querySelector(entrySelector);
+assert.ok(gameEntry, "遊戲重新繪製導覽列後應自動補回入口");
 
 const levels = api.extractGuildCombatBuffLevels({
   characterGuildBuffLevelMap: {

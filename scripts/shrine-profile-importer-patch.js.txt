@@ -1,0 +1,91 @@
+function findGuildBuffLevelEntry(source, key) {
+  if (!source || typeof source !== "object") {
+    return { found: false, level: 0 };
+  }
+  const expectedHrids = [
+    `/guild_buffs/${key}_combat`,
+    `/guild_buffs/combat_${key}`,
+  ];
+  if (Array.isArray(source)) {
+    const exact = source.find((entry) =>
+      expectedHrids.includes(entry?.guildBuffHrid ?? entry?.hrid),
+    );
+    if (exact) {
+      return { found: true, level: readGuildBuffLevelValue(exact) };
+    }
+    const fuzzy = source.find((entry) => {
+      const hrid = String(
+        entry?.guildBuffHrid ?? entry?.hrid ?? "",
+      ).toLowerCase();
+      return (
+        hrid.includes(key) &&
+        (hrid.includes("combat") || hrid.includes("battle")) &&
+        !hrid.includes("skilling")
+      );
+    });
+    return fuzzy
+      ? { found: true, level: readGuildBuffLevelValue(fuzzy) }
+      : { found: false, level: 0 };
+  }
+  for (const hrid of expectedHrids) {
+    if (Object.prototype.hasOwnProperty.call(source, hrid)) {
+      return { found: true, level: readGuildBuffLevelValue(source[hrid]) };
+    }
+  }
+  const fuzzyKey = Object.keys(source).find((hrid) => {
+    const normalized = hrid.toLowerCase();
+    return (
+      normalized.includes(key) &&
+      (normalized.includes("combat") || normalized.includes("battle")) &&
+      !normalized.includes("skilling")
+    );
+  });
+  return fuzzyKey
+    ? { found: true, level: readGuildBuffLevelValue(source[fuzzyKey]) }
+    : { found: false, level: 0 };
+}
+
+function inspectGuildCombatBuffLevels(source) {
+  const candidates = [
+    ["guildBuffLevelMap", source?.guildBuffLevelMap],
+    ["characterGuildBuffLevelMap", source?.characterGuildBuffLevelMap],
+    ["characterGuildBuffMap", source?.characterGuildBuffMap],
+    ["characterGuildBuffDict", source?.characterGuildBuffDict],
+    ["characterGuildBuffs", source?.characterGuildBuffs],
+    ["characterGuildBuffLevelDict", source?.characterGuildBuffLevelDict],
+    ["guildBuffLevelDict", source?.guildBuffLevelDict],
+  ];
+  const presentCandidates = candidates.filter(([property, candidate]) =>
+    Object.prototype.hasOwnProperty.call(source ?? {}, property) &&
+    candidate &&
+    typeof candidate === "object",
+  );
+  const levels = {};
+  let foundAnyLevel = false;
+  for (const key of LIVE_IMPORT_GUILD_KEYS) {
+    let match = { found: false, level: 0 };
+    for (const [, candidate] of presentCandidates) {
+      match = findGuildBuffLevelEntry(candidate, key);
+      if (match.found) break;
+    }
+    levels[key] = match.level;
+    foundAnyLevel ||= match.found;
+  }
+  return {
+    levels,
+    missing: presentCandidates.length === 0,
+    source: presentCandidates[0]?.[0] ?? "missing",
+    foundAnyLevel,
+  };
+}
+
+function extractGuildCombatBuffLevels(source) {
+  return inspectGuildCombatBuffLevels(source).levels;
+}
+
+function applyGuildCombatBuffLevels(playerObj, source) {
+  const shrineData = inspectGuildCombatBuffLevels(source);
+  playerObj.guildCombatBuffLevels = shrineData.levels;
+  playerObj.guildCombatBuffLevelsMissing = shrineData.missing;
+  playerObj.guildCombatBuffLevelsSource = shrineData.source;
+}

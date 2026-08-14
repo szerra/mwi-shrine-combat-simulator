@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MWI 神龕模擬器橋接器
 // @namespace    https://github.com/szerra/mwi-shrine-combat-simulator
-// @version      1.0.2
+// @version      1.0.3
 // @description  在遊戲內開啟神龕模擬器，並獨立擷取角色、隊伍、裝備、技能與神龕等級；不依賴 MWITools 或公會資料插件。
 // @author       Szerra adaptation; importer based on MWITools by bot7420, shykai, Stella
 // @license      CC-BY-NC-SA-4.0
@@ -31,7 +31,7 @@
 (function () {
   "use strict";
 
-  const VERSION = "1.0.2";
+  const VERSION = "1.0.3";
   const PREFIX = "mwiShrineBridge_";
   const SIMULATOR_URL = "https://szerra.github.io/mwi-shrine-combat-simulator/";
   const GAME_SOCKET_HOSTS = [
@@ -132,64 +132,96 @@ function readGuildBuffLevelValue(value) {
     : 0;
 }
 
-function findGuildBuffLevel(source, key) {
-  if (!source || typeof source !== "object") return 0;
+function findGuildBuffLevelEntry(source, key) {
+  if (!source || typeof source !== "object") {
+    return { found: false, level: 0 };
+  }
   const expectedHrids = [
     `/guild_buffs/${key}_combat`,
     `/guild_buffs/combat_${key}`,
-    `/guild_buffs/${key}`,
-    key,
   ];
   if (Array.isArray(source)) {
     const exact = source.find((entry) =>
       expectedHrids.includes(entry?.guildBuffHrid ?? entry?.hrid),
     );
-    if (exact) return readGuildBuffLevelValue(exact);
+    if (exact) {
+      return { found: true, level: readGuildBuffLevelValue(exact) };
+    }
     const fuzzy = source.find((entry) => {
       const hrid = String(
         entry?.guildBuffHrid ?? entry?.hrid ?? "",
       ).toLowerCase();
       return (
         hrid.includes(key) &&
-        (hrid.includes("combat") || hrid.includes("battle"))
+        (hrid.includes("combat") || hrid.includes("battle")) &&
+        !hrid.includes("skilling")
       );
     });
-    return readGuildBuffLevelValue(fuzzy);
+    return fuzzy
+      ? { found: true, level: readGuildBuffLevelValue(fuzzy) }
+      : { found: false, level: 0 };
   }
   for (const hrid of expectedHrids) {
     if (Object.prototype.hasOwnProperty.call(source, hrid)) {
-      return readGuildBuffLevelValue(source[hrid]);
+      return { found: true, level: readGuildBuffLevelValue(source[hrid]) };
     }
   }
   const fuzzyKey = Object.keys(source).find((hrid) => {
     const normalized = hrid.toLowerCase();
     return (
       normalized.includes(key) &&
-      (normalized.includes("combat") || normalized.includes("battle"))
+      (normalized.includes("combat") || normalized.includes("battle")) &&
+      !normalized.includes("skilling")
     );
   });
-  return fuzzyKey ? readGuildBuffLevelValue(source[fuzzyKey]) : 0;
+  return fuzzyKey
+    ? { found: true, level: readGuildBuffLevelValue(source[fuzzyKey]) }
+    : { found: false, level: 0 };
+}
+
+function inspectGuildCombatBuffLevels(source) {
+  const candidates = [
+    ["guildBuffLevelMap", source?.guildBuffLevelMap],
+    ["characterGuildBuffLevelMap", source?.characterGuildBuffLevelMap],
+    ["characterGuildBuffMap", source?.characterGuildBuffMap],
+    ["characterGuildBuffDict", source?.characterGuildBuffDict],
+    ["characterGuildBuffs", source?.characterGuildBuffs],
+    ["characterGuildBuffLevelDict", source?.characterGuildBuffLevelDict],
+    ["guildBuffLevelDict", source?.guildBuffLevelDict],
+  ];
+  const presentCandidates = candidates.filter(([property, candidate]) =>
+    Object.prototype.hasOwnProperty.call(source ?? {}, property) &&
+    candidate &&
+    typeof candidate === "object",
+  );
+  const levels = {};
+  let foundAnyLevel = false;
+  for (const key of LIVE_IMPORT_GUILD_KEYS) {
+    let match = { found: false, level: 0 };
+    for (const [, candidate] of presentCandidates) {
+      match = findGuildBuffLevelEntry(candidate, key);
+      if (match.found) break;
+    }
+    levels[key] = match.level;
+    foundAnyLevel ||= match.found;
+  }
+  return {
+    levels,
+    missing: presentCandidates.length === 0,
+    source: presentCandidates[0]?.[0] ?? "missing",
+    foundAnyLevel,
+  };
 }
 
 function extractGuildCombatBuffLevels(source) {
-  const candidates = [
-    source?.characterGuildBuffMap,
-    source?.characterGuildBuffDict,
-    source?.characterGuildBuffs,
-    source?.characterGuildBuffLevelMap,
-    source?.characterGuildBuffLevelDict,
-    source?.guildBuffLevelMap,
-    source?.guildBuffLevelDict,
-  ];
-  const guildBuffSource = candidates.find(
-    (candidate) => candidate && typeof candidate === "object",
-  );
-  return Object.fromEntries(
-    LIVE_IMPORT_GUILD_KEYS.map((key) => [
-      key,
-      findGuildBuffLevel(guildBuffSource, key),
-    ]),
-  );
+  return inspectGuildCombatBuffLevels(source).levels;
+}
+
+function applyGuildCombatBuffLevels(playerObj, source) {
+  const shrineData = inspectGuildCombatBuffLevels(source);
+  playerObj.guildCombatBuffLevels = shrineData.levels;
+  playerObj.guildCombatBuffLevelsMissing = shrineData.missing;
+  playerObj.guildCombatBuffLevelsSource = shrineData.source;
 }
 
 function getStoredBattleForRoster(partyCharacterIDs) {
@@ -654,7 +686,7 @@ function constructSelfPlayerExportObjFromInitCharacterData(
       achievement.isCompleted;
   }
 
-  playerObj.guildCombatBuffLevels = extractGuildCombatBuffLevels(characterObj);
+  applyGuildCombatBuffLevels(playerObj, characterObj);
 
   return playerObj;
 }
@@ -889,9 +921,10 @@ function constructPlayerExportObjFromStoredProfile(
       achievement.isCompleted;
   }
 
-  playerObj.guildCombatBuffLevels = extractGuildCombatBuffLevels(
-    profile.profile,
-  );
+  // Each teammate must use only that teammate's profile_shared shrine map.
+  // Missing profile shrine data stays at zero and is marked; never borrow the
+  // current character's or another party member's values.
+  applyGuildCombatBuffLevels(playerObj, profile.profile);
 
   return playerObj;
 }
@@ -1202,6 +1235,7 @@ function constructPlayerExportObjFromStoredProfile(
     pageWindow.__mwiShrineBridgeTestAPI = {
       constructGroupExportObj,
       extractGuildCombatBuffLevels,
+      inspectGuildCombatBuffLevels,
       handleGamePayload,
       findGuildBuffMap,
       ensureGameSimulatorEntry,

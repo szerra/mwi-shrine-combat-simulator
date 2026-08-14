@@ -140,7 +140,7 @@
         "spirit": "精神神龕",
         "spiritEffect": "每級：最大 HP +1%、最大 MP +1%",
         "rarity": "稀有神龕",
-        "rarityEffect": "每級：戰鬥稀有發現 +1%",
+        "rarityEffect": "每級：戰鬥稀有發現 +1.5%",
         "scholar": "學者神龕",
         "scholarEffect": "每級：戰鬥經驗 +0.5%"
     }

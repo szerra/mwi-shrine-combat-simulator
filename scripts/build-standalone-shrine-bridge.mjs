@@ -21,6 +21,30 @@ if (start < 0 || end <= start) {
 }
 
 let importer = upstream.slice(start, end).trim();
+const shrinePatch = fs.readFileSync(
+  path.join(here, "shrine-profile-importer-patch.js.txt"),
+  "utf8",
+).trim();
+const shrineStart = importer.indexOf("function findGuildBuffLevel(source, key) {");
+const shrineEnd = importer.indexOf("\n\nfunction getStoredBattleForRoster", shrineStart);
+if (shrineStart < 0 || shrineEnd <= shrineStart) {
+  throw new Error("找不到 MWITools 神龕匯入函式，無法套用隊友個別神龕支援");
+}
+importer = `${importer.slice(0, shrineStart)}${shrinePatch}${importer.slice(shrineEnd)}`;
+importer = importer
+  .replace(
+    "playerObj.guildCombatBuffLevels = extractGuildCombatBuffLevels(characterObj);",
+    "applyGuildCombatBuffLevels(playerObj, characterObj);",
+  )
+  .replace(
+    `playerObj.guildCombatBuffLevels = extractGuildCombatBuffLevels(
+    profile.profile,
+  );`,
+    `// Each teammate must use only that teammate's profile_shared shrine map.
+  // Missing profile shrine data stays at zero and is marked; never borrow the
+  // current character's or another party member's values.
+  applyGuildCombatBuffLevels(playerObj, profile.profile);`,
+  );
 const storageKeys = [
   "init_character_data_saved_at",
   "init_character_data_character_id",
@@ -47,7 +71,7 @@ importer = importer
 const metadata = `// ==UserScript==
 // @name         MWI 神龕模擬器橋接器
 // @namespace    https://github.com/szerra/mwi-shrine-combat-simulator
-// @version      1.0.2
+// @version      1.0.3
 // @description  在遊戲內開啟神龕模擬器，並獨立擷取角色、隊伍、裝備、技能與神龕等級；不依賴 MWITools 或公會資料插件。
 // @author       Szerra adaptation; importer based on MWITools by bot7420, shykai, Stella
 // @license      CC-BY-NC-SA-4.0
@@ -78,7 +102,7 @@ const runtimeSupport = `
 (function () {
   "use strict";
 
-  const VERSION = "1.0.2";
+  const VERSION = "1.0.3";
   const PREFIX = "mwiShrineBridge_";
   const SIMULATOR_URL = "https://szerra.github.io/mwi-shrine-combat-simulator/";
   const GAME_SOCKET_HOSTS = [
@@ -403,6 +427,7 @@ ${importer}
     pageWindow.__mwiShrineBridgeTestAPI = {
       constructGroupExportObj,
       extractGuildCombatBuffLevels,
+      inspectGuildCombatBuffLevels,
       handleGamePayload,
       findGuildBuffMap,
       ensureGameSimulatorEntry,

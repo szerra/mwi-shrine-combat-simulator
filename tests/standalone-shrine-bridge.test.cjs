@@ -7,7 +7,7 @@ const root = path.resolve(__dirname, "..");
 const scriptPath = path.join(root, "MWI-Shrine-Simulator-Bridge.user.js");
 const source = fs.readFileSync(scriptPath, "utf8");
 
-assert.match(source, /@version\s+1\.0\.2/);
+assert.match(source, /@version\s+1\.0\.3/);
 assert.match(source, /characterGuildBuffLevelMap/);
 assert.match(source, /神龕戰鬥模擬器/);
 assert.match(source, /https:\/\/szerra\.github\.io\/mwi-shrine-combat-simulator\//);
@@ -172,6 +172,31 @@ assert.deepEqual(
   JSON.parse(JSON.stringify(levels)),
   { force: 7, tempo: 6, spirit: 5, rarity: 4, scholar: 3 },
 );
+const sharedProfileShrines = api.inspectGuildCombatBuffLevels({
+  guildBuffLevelMap: {
+    "/guild_buffs/force_combat": 13,
+    "/guild_buffs/force_skilling": 20,
+    "/guild_buffs/rarity_skilling": 20,
+    "/guild_buffs/tempo_combat": 12,
+    "/guild_buffs/spirit_combat": 10,
+    "/guild_buffs/scholar_combat": 4,
+  },
+});
+assert.deepEqual(JSON.parse(JSON.stringify(sharedProfileShrines)), {
+  levels: { force: 13, tempo: 12, spirit: 10, rarity: 0, scholar: 4 },
+  missing: false,
+  source: "guildBuffLevelMap",
+  foundAnyLevel: true,
+});
+assert.deepEqual(
+  JSON.parse(JSON.stringify(api.inspectGuildCombatBuffLevels({}))),
+  {
+    levels: { force: 0, tempo: 0, spirit: 0, rarity: 0, scholar: 0 },
+    missing: true,
+    source: "missing",
+    foundAnyLevel: false,
+  },
+);
 
 api.handleGamePayload({
   type: "init_client_data",
@@ -251,14 +276,48 @@ storage.set("mwiShrineBridge_profile_export_list", JSON.stringify([{
     consumableCombatTriggersMap: {},
     characterHouseRoomMap: {},
     characterAchievements: {},
-    characterGuildBuffLevelMap: {
-      "/guild_buffs/force_combat": { level: 4 },
+    guildBuffLevelMap: {
+      "/guild_buffs/force_combat": 13,
+      "/guild_buffs/force_skilling": 20,
+      "/guild_buffs/rarity_skilling": 20,
+      "/guild_buffs/tempo_combat": 12,
+      "/guild_buffs/spirit_combat": 10,
+      "/guild_buffs/scholar_combat": 4,
     },
   },
 }]));
 const [partyExports, partyNames, partyPositions] = api.constructGroupExportObj();
 assert.equal(partyNames[1], "TEAMMATE");
 assert.equal(partyPositions[1], true);
-assert.equal(JSON.parse(partyExports[2]).guildCombatBuffLevels.force, 4);
+const teammateExport = JSON.parse(partyExports[2]);
+assert.deepEqual(teammateExport.guildCombatBuffLevels, {
+  force: 13,
+  tempo: 12,
+  spirit: 10,
+  rarity: 0,
+  scholar: 4,
+});
+assert.equal(teammateExport.guildCombatBuffLevelsMissing, false);
+assert.equal(teammateExport.guildCombatBuffLevelsSource, "guildBuffLevelMap");
+
+const missingShrineProfile = JSON.parse(JSON.stringify(
+  JSON.parse(storage.get("mwiShrineBridge_profile_export_list"))[0],
+));
+delete missingShrineProfile.profile.guildBuffLevelMap;
+storage.set(
+  "mwiShrineBridge_profile_export_list",
+  JSON.stringify([missingShrineProfile]),
+);
+const [missingShrineExports] = api.constructGroupExportObj();
+const missingShrineTeammate = JSON.parse(missingShrineExports[2]);
+assert.deepEqual(missingShrineTeammate.guildCombatBuffLevels, {
+  force: 0,
+  tempo: 0,
+  spirit: 0,
+  rarity: 0,
+  scholar: 0,
+});
+assert.equal(missingShrineTeammate.guildCombatBuffLevelsMissing, true);
+assert.equal(missingShrineTeammate.guildCombatBuffLevelsSource, "missing");
 
 console.log("standalone shrine bridge checks passed");

@@ -1250,7 +1250,7 @@ class Player extends _combatUnit__WEBPACK_IMPORTED_MODULE_1__["default"] {
             boosts.push({ ratioBoost: 0.01 * levels.spirit, flatBoost: 0 });
         }
         if (type === "/buff_types/rare_find" && levels.rarity > 0) {
-            boosts.push({ ratioBoost: 0, flatBoost: 0.01 * levels.rarity });
+            boosts.push({ ratioBoost: 0, flatBoost: 0.015 * levels.rarity });
         }
         if (type === "/buff_types/wisdom" && levels.scholar > 0) {
             boosts.push({ ratioBoost: 0, flatBoost: 0.005 * levels.scholar });

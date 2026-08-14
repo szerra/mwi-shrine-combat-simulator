@@ -141,7 +141,7 @@
         "spirit": "Shrine of Spirit",
         "spiritEffect": "Per level: Max HP +1%, Max MP +1%",
         "rarity": "Shrine of Rarity",
-        "rarityEffect": "Per level: Combat Rare Find +1%",
+        "rarityEffect": "Per level: Combat Rare Find +1.5%",
         "scholar": "Shrine of Scholar",
         "scholarEffect": "Per level: Combat Experience +0.5%"
     }
